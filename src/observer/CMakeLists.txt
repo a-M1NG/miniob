@@ -1,65 +1,70 @@
-MESSAGE(STATUS "This is CMAKE_CURRENT_SOURCE_DIR dir " ${CMAKE_CURRENT_SOURCE_DIR})
+cmake_minimum_required(VERSION 3.10)
+project(observer_project)
 
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
+# 打印当前源码目录
+message(STATUS "This is CMAKE_CURRENT_SOURCE_DIR dir ${CMAKE_CURRENT_SOURCE_DIR}")
 
-SET (PARSER_WORKDIR ${CMAKE_CURRENT_SOURCE_DIR}/sql/parser)
-SET (PARSER_SOURCES ${PARSER_WORKDIR}/lex_sql.cpp ${PARSER_WORKDIR}/yacc_sql.cpp)
-SET (PARSER_HEADERS ${PARSER_WORKDIR}/lex_sql.h ${PARSER_WORKDIR}/yacc_sql.hpp)
-ADD_CUSTOM_COMMAND(
-    OUTPUT ${PARSER_SOURCES} ${PARSER_HEADERS}
-    COMMAND bash gen_parser.sh
-    DEPENDS ${PARSER_WORKDIR}/lex_sql.l ${PARSER_WORKDIR}/yacc_sql.y
-    WORKING_DIRECTORY ${PARSER_WORKDIR}
-    COMMENT "generating lex and yacc files"
-)
+# 包含当前源码目录
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-FILE(GLOB_RECURSE ALL_SRC *.cpp *.c)
-SET(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
-MESSAGE("MAIN SRC: " ${MAIN_SRC})
-SET(LIB_SRC ${LIB_SRC} ${PARSER_SOURCES})
-FOREACH (F ${ALL_SRC})
+# 查找所有源码文件
+file(GLOB_RECURSE ALL_SRC *.cpp *.c)
+set(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
+message("MAIN SRC: ${MAIN_SRC}")
 
-    IF (NOT ${F} STREQUAL ${MAIN_SRC})
-        SET(LIB_SRC ${LIB_SRC} ${F})
-        MESSAGE("Use " ${F})
-    ENDIF()
+# 排除 main.cpp，并将其他源码文件设置为库源文件
+foreach(F ${ALL_SRC})
+    if(NOT ${F} STREQUAL ${MAIN_SRC})
+        set(LIB_SRC ${LIB_SRC} ${F})
+        message("Use ${F}")
+    endif()
+endforeach()
 
-ENDFOREACH (F)
+# 设置 libevent 的路径并查找 libevent
+# set(Libevent_DIR "../deps/3rd/libevent/build")
+find_package(Libevent CONFIG REQUIRED)
 
-SET(LIBEVENT_STATIC_LINK TRUE)
-FIND_PACKAGE(Libevent CONFIG REQUIRED)
+# 启用 PkgConfig 并使用它来查找 jsoncpp
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(JSONCPP REQUIRED jsoncpp)
 
-# JsonCpp cannot work correctly with FIND_PACKAGE
+# 添加 jsoncpp 的库和头文件路径
+include_directories(${JSONCPP_INCLUDE_DIRS})
+list(APPEND LIBRARIES ${JSONCPP_LIBRARIES})
 
-SET(LIBRARIES common pthread dl libevent::core libevent::pthreads libjsoncpp.a)
+# 设置所需的库，包括 libevent 和其他依赖项
+set(LIBRARIES ${LIBRARIES} common pthread dl libevent::core libevent::pthreads)
 
 # 指定目标文件位置
-SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
-MESSAGE("Binary directory:" ${EXECUTABLE_OUTPUT_PATH})
-SET(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
-MESSAGE("Archive directory:" ${LIBRARY_OUTPUT_PATH})
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
+message("Binary directory: ${EXECUTABLE_OUTPUT_PATH}")
+set(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
+message("Archive directory: ${LIBRARY_OUTPUT_PATH}")
 
-ADD_EXECUTABLE(observer ${MAIN_SRC})
-TARGET_LINK_LIBRARIES(observer observer_static)
+# 添加可执行文件
+add_executable(observer ${MAIN_SRC})
+target_link_libraries(observer observer_static)
 
-ADD_LIBRARY(observer_static STATIC ${LIB_SRC})
-INCLUDE (readline)
+# 添加静态库
+add_library(observer_static STATIC ${LIB_SRC})
+
+# 链接 readline 库
+include(readline)
 MINIOB_FIND_READLINE()
-IF (HAVE_READLINE)
-    TARGET_LINK_LIBRARIES(observer_static ${READLINE_LIBRARY})
-    TARGET_INCLUDE_DIRECTORIES(observer_static PRIVATE ${READLINE_INCLUDE_DIR})
-    ADD_DEFINITIONS(-DUSE_READLINE)
-    MESSAGE ("observer_static use readline")
-ELSE ()
-    MESSAGE ("readline is not found")
-ENDIF()
+if(HAVE_READLINE)
+    target_link_libraries(observer_static ${READLINE_LIBRARY})
+    target_include_directories(observer_static PRIVATE ${READLINE_INCLUDE_DIR})
+    add_definitions(-DUSE_READLINE)
+    message("observer_static uses readline")
+else()
+    message("readline is not found")
+endif()
 
-SET_TARGET_PROPERTIES(observer_static PROPERTIES OUTPUT_NAME observer)
-TARGET_LINK_LIBRARIES(observer_static ${LIBRARIES})
+# 设置目标库属性
+set_target_properties(observer_static PROPERTIES OUTPUT_NAME observer)
+target_link_libraries(observer_static ${LIBRARIES})
 
-# Target 必须在定义 ADD_EXECUTABLE 之后， programs 不受这个限制
-# TARGETS和PROGRAMS 的默认权限是OWNER_EXECUTE, GROUP_EXECUTE, 和WORLD_EXECUTE，即755权限， programs 都是处理脚本类
-# 类型分为RUNTIME／LIBRARY／ARCHIVE, prog
-INSTALL(TARGETS observer observer_static 
+# 安装目标文件
+install(TARGETS observer observer_static 
     RUNTIME DESTINATION bin
     ARCHIVE DESTINATION lib)
