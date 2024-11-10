@@ -36,7 +36,7 @@ list(APPEND LIBRARIES ${JSONCPP_LIBRARIES})
 set(LIBRARIES ${LIBRARIES} common pthread dl libevent::core libevent::pthreads)
 
 # 指定目标文件位置
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
+set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
 message("Binary directory: ${EXECUTABLE_OUTPUT_PATH}")
 set(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
 message("Archive directory: ${LIBRARY_OUTPUT_PATH}")
