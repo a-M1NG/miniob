@@ -397,6 +397,29 @@ RC Db::init_dblwr_buffer()
   return RC::SUCCESS;
 }
 
+RC Db::drop_table(const char *table_name)
+{
+  RC rc = RC::SUCCESS;
+  // check table_name
+  if (opened_tables_.count(table_name) == 0) {
+    LOG_ERROR("Table doesn't exists, whose name is %s", table_name);
+    return RC::SCHEMA_DB_NOT_EXIST;
+  }
+  // 从字典中获取对应表名的Table，调用其自毁函数(drop)
+  Table  *table    = opened_tables_[table_name];
+  int32_t table_id = table->table_id();
+  rc               = table->drop();
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to drop table %s.", table_name);
+    return rc;
+  }
+
+  delete table;
+  opened_tables_.erase(table_name);
+  LOG_INFO("Table drop successfully, table name is %s, table id = %d", table_name, table_id);
+  return RC::SUCCESS;
+}
+
 LogHandler        &Db::log_handler() { return *log_handler_; }
 BufferPoolManager &Db::buffer_pool_manager() { return *buffer_pool_manager_; }
 TrxKit            &Db::trx_kit() { return *trx_kit_; }
