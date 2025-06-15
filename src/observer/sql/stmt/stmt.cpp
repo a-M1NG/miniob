@@ -2,7 +2,7 @@
 miniob is licensed under Mulan PSL v2.
 You can use this software according to the terms and conditions of the Mulan PSL v2.
 You may obtain a copy of Mulan PSL v2 at:
-         http://license.coscl.org.cn/MulanPSL2
+                                 http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
@@ -30,6 +30,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/show_tables_stmt.h"
 #include "sql/stmt/trx_begin_stmt.h"
 #include "sql/stmt/trx_end_stmt.h"
+#include "sql/stmt/update_stmt.h"
 
 bool stmt_type_ddl(StmtType type)
 {
@@ -111,6 +112,10 @@ RC Stmt::create_stmt(Db *db, ParsedSqlNode &sql_node, Stmt *&stmt)
 
     case SCF_CALC: {
       return CalcStmt::create(sql_node.calc, stmt);
+    }
+
+    case SCF_UPDATE: {
+      return UpdateStmt::create(db, sql_node.update, stmt);
     }
 
     default: {
