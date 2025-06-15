@@ -481,19 +481,6 @@ RC Table::delete_record(const RID &rid)
   return delete_record(record);
 }
 
-RC Table::delete_record(const Record &record)
-{
-  RC rc = RC::SUCCESS;
-  for (Index *index : indexes_) {
-    rc = index->delete_entry(record.data(), &record.rid());
-    ASSERT(RC::SUCCESS == rc, 
-           "failed to delete entry from index. table name=%s, index name=%s, rid=%s, rc=%s",
-           name(), index->index_meta().name(), record.rid().to_string().c_str(), strrc(rc));
-  }
-  rc = record_handler_->delete_record(&record.rid());
-  return rc;
-}
-
 RC Table::update_record(Record &record, const char *attr_name, Value *value)
 {
   RC rc = RC::SUCCESS;
@@ -505,12 +492,16 @@ RC Table::update_record(Record &record, const char *attr_name, Value *value)
   int field_length = -1;
 
   for (int i = 0; i < normal_field_num && OB_SUCC(rc); i++) {
-    const FieldMeta *field      = table_meta_.field(i + normal_field_start_index);
-    const char      *field_name = field->name();
-    if (field_name == attr_name) {
+    const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
+    if (field->name() == attr_name) {
+      if (field->type() == AttrType::CHARS && field->len() < value->length()) {
+        LOG_WARN("field length mismatch. table=%s, field=%s, field type=%d, value_type=%d",name(),field->name(),field->len(),value->length());
+        return RC::INVALID_ARGUMENT;
+      }
       if (field->type() != value->attr_type()) {
         // 暂不支持Value::cast_to()
-        LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",name(),field_name,field->type(),value->attr_type());
+        LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",name(),field->name(),field->type(),value->attr_type());
+        return RC::INVALID_ARGUMENT;
       }
       field_offset = field->offset();
       field_length = field->len();
@@ -522,7 +513,7 @@ RC Table::update_record(Record &record, const char *attr_name, Value *value)
     return RC::SCHEMA_FIELD_NOT_EXIST;
   }
 
-  char *old_data = record.data();  // old_data指向的是frame中的内存
+  char *old_data = record.data();  // old_data并非指向frame中的内存，而是一个仅仅是赋值而来的一个值，参见current_record_
   memcpy(old_data + field_offset, value->data(), field_length);
 
   record_handler_->update_record(&record);
@@ -532,6 +523,19 @@ RC Table::update_record(Record &record, const char *attr_name, Value *value)
   }
 
   return RC::SUCCESS;
+}
+
+RC Table::delete_record(const Record &record)
+{
+  RC rc = RC::SUCCESS;
+  for (Index *index : indexes_) {
+    rc = index->delete_entry(record.data(), &record.rid());
+    ASSERT(RC::SUCCESS == rc, 
+           "failed to delete entry from index. table name=%s, index name=%s, rid=%s, rc=%s",
+           name(), index->index_meta().name(), record.rid().to_string().c_str(), strrc(rc));
+  }
+  rc = record_handler_->delete_record(&record.rid());
+  return rc;
 }
 
 RC Table::insert_entry_of_indexes(const char *record, const RID &rid)
