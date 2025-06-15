@@ -136,6 +136,7 @@ FORMAT                                  RETURN_TOKEN(FORMAT);
 "-" |
 "*" |
 "/"                                     { return yytext[0]; }
+{QUOTE}[0-9]{4}\-([0-9]|[0-9]{2})\-([0-9]|[0-9]{2}){QUOTE}            yylval->string = strdup(yytext); RETURN_TOKEN(DATE_STR);//放在普通字符串前面，记得要加单双引号啊,且月份和日期都可以一个数字
 \"[^"]*\"                               yylval->string = strdup(yytext); RETURN_TOKEN(SSS);
 '[^']*\'                                yylval->string = strdup(yytext); RETURN_TOKEN(SSS);
 

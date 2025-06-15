@@ -22,6 +22,8 @@ See the Mulan PSL v2 for more details. */
 
 Value::Value(int val) { set_int(val); }
 
+Value::Value(int val, bool isDate) { set_date(val); }
+
 Value::Value(float val) { set_float(val); }
 
 Value::Value(bool val) { set_boolean(val); }
@@ -125,6 +127,10 @@ void Value::set_data(char *data, int length)
       value_.bool_value_ = *(int *)data != 0;
       length_            = length;
     } break;
+    case AttrType::DATES: {
+      value_.int_value_ = *(int *)data;
+      length_           = length;
+    } break;
     default: {
       LOG_WARN("unknown data type: %d", attr_type_);
     } break;
@@ -145,6 +151,12 @@ void Value::set_float(float val)
   attr_type_          = AttrType::FLOATS;
   value_.float_value_ = val;
   length_             = sizeof(val);
+}
+void Value::set_date(int val)
+{
+  attr_type_        = AttrType::DATES;
+  value_.int_value_ = val;
+  length_           = sizeof(val);
 }
 void Value::set_boolean(bool val)
 {
@@ -186,6 +198,9 @@ void Value::set_value(const Value &value)
     } break;
     case AttrType::CHARS: {
       set_string(value.get_string().c_str());
+    } break;
+    case AttrType::DATES: {
+      set_date(value.get_int());
     } break;
     case AttrType::BOOLEANS: {
       set_boolean(value.get_boolean());
@@ -229,7 +244,10 @@ string Value::to_string() const
   return res;
 }
 
-int Value::compare(const Value &other) const { return DataType::type_instance(this->attr_type_)->compare(*this, other); }
+int Value::compare(const Value &other) const
+{
+  return DataType::type_instance(this->attr_type_)->compare(*this, other);
+}
 
 int Value::get_int() const
 {
@@ -247,6 +265,9 @@ int Value::get_int() const
     }
     case AttrType::FLOATS: {
       return (int)(value_.float_value_);
+    }
+    case AttrType::DATES: {
+      return value_.int_value_;
     }
     case AttrType::BOOLEANS: {
       return (int)(value_.bool_value_);
@@ -270,6 +291,7 @@ float Value::get_float() const
         return 0.0;
       }
     } break;
+    case AttrType::DATES:
     case AttrType::INTS: {
       return float(value_.int_value_);
     } break;
